@@ -1,16 +1,16 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Jen Hub", -- Changed title
+   Name = "Jen Hub",
    LoadingTitle = "Loading Script...",
-   LoadingSubtitle = "made by Jen", -- Changed subtitle
+   LoadingSubtitle = "made by Jen",
    ConfigurationSaving = {
       Enabled = true,
       FolderName = "GlideUtility",
       FileName = "Config"
    },
    KeySystem = false,
-   Theme = "Bloom" -- This sets the UI color to Pink
+   Theme = "Bloom" -- Pink Theme
 })
 
 -- Services
@@ -26,6 +26,60 @@ local glideSpeed = 50
 local currentTween = nil
 local savedPosition = nil
 
+-- Logic Functions (shared by buttons and keybinds)
+local function SavePosition()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        savedPosition = hrp.CFrame
+        Rayfield:Notify({
+            Title = "Position Saved",
+            Content = "You can now glide back to this spot.",
+            Duration = 2,
+            Image = 4483362458,
+        })
+    end
+end
+
+local function GlideToPosition(target)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if hrp and target then
+        local distance = (hrp.Position - target.Position).Magnitude
+        local duration = distance / math.max(glideSpeed, 1)
+
+        if currentTween then currentTween:Cancel() end
+
+        currentTween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+            CFrame = target
+        })
+        
+        currentTween:Play()
+        
+        Rayfield:Notify({
+            Title = "Gliding",
+            Content = "Moving to location...",
+            Duration = 2,
+            Image = 4483362458,
+        })
+    else
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Target position or Character not found!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end
+end
+
+local function StopMovement()
+    if currentTween then 
+        currentTween:Cancel() 
+        Rayfield:Notify({Title = "Stopped", Content = "Movement cancelled.", Duration = 1})
+    end
+end
+
 -- Fast Proximity Prompt
 game:GetService("ProximityPromptService").PromptShown:Connect(function(prompt)
     prompt.HoldDuration = 0
@@ -36,7 +90,7 @@ local MainTab = Window:CreateTab("Main", 4483362458)
 
 local GlideSection = MainTab:CreateSection("Movement Controls")
 
-MainTab:CreateToggle({
+local TPWalkToggle = MainTab:CreateToggle({
    Name = "Enable TP Walk (Glide)",
    CurrentValue = false,
    Flag = "TPWalkToggle",
@@ -57,59 +111,62 @@ MainTab:CreateSlider({
    end,
 })
 
-MainTab:CreateLabel("Tip: 600-700 is the smoothest glide")
+MainTab:CreateSection("Keybinds (PC)")
 
-local PositionSection = MainTab:CreateSection("Position Management")
+MainTab:CreateKeybind({
+   Name = "Toggle TP Walk",
+   CurrentKeybind = "Q",
+   HoldToInteract = false,
+   Flag = "Keybind1", 
+   Callback = function(Keybind)
+      tpWalkEnabled = not tpWalkEnabled
+      TPWalkToggle:Set(tpWalkEnabled) -- Updates the toggle UI
+   end,
+})
+
+MainTab:CreateKeybind({
+   Name = "Save Position Key",
+   CurrentKeybind = "Z",
+   HoldToInteract = false,
+   Flag = "Keybind2",
+   Callback = function(Keybind)
+      SavePosition()
+   end,
+})
+
+MainTab:CreateKeybind({
+   Name = "Glide to Saved Key",
+   CurrentKeybind = "X",
+   HoldToInteract = false,
+   Flag = "Keybind3",
+   Callback = function(Keybind)
+      GlideToPosition(savedPosition)
+   end,
+})
+
+MainTab:CreateKeybind({
+   Name = "Emergency Stop Key",
+   CurrentKeybind = "C",
+   HoldToInteract = false,
+   Flag = "Keybind4",
+   Callback = function(Keybind)
+      StopMovement()
+   end,
+})
+
+local PositionSection = MainTab:CreateSection("Manual Management")
 
 MainTab:CreateButton({
    Name = "Save Current Position",
    Callback = function()
-      local char = LocalPlayer.Character
-      local hrp = char and char:FindFirstChild("HumanoidRootPart")
-      if hrp then
-         savedPosition = hrp.CFrame
-         Rayfield:Notify({
-            Title = "Position Saved",
-            Content = "You can now glide back to this spot.",
-            Duration = 3,
-            Image = 4483362458,
-         })
-      end
+      SavePosition()
    end,
 })
 
 MainTab:CreateButton({
    Name = "Glide to Saved Position",
    Callback = function()
-      local char = LocalPlayer.Character
-      local hrp = char and char:FindFirstChild("HumanoidRootPart")
-      
-      if hrp and savedPosition then
-         local distance = (hrp.Position - savedPosition.Position).Magnitude
-         local duration = distance / math.max(glideSpeed, 1)
-
-         if currentTween then currentTween:Cancel() end
-
-         currentTween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-             CFrame = savedPosition
-         })
-         
-         currentTween:Play()
-         
-         Rayfield:Notify({
-            Title = "Gliding",
-            Content = "Moving to saved location...",
-            Duration = 2,
-            Image = 4483362458,
-         })
-      else
-         Rayfield:Notify({
-            Title = "Error",
-            Content = "No position saved or Character not found!",
-            Duration = 3,
-            Image = 4483362458,
-         })
-      end
+      GlideToPosition(savedPosition)
    end,
 })
 
@@ -134,27 +191,15 @@ ActionTab:CreateButton({
 ActionTab:CreateButton({
    Name = "Glide to Stand",
    Callback = function()
-      local char = LocalPlayer.Character
-      local hrp = char and char:FindFirstChild("HumanoidRootPart")
       local targetPos = CFrame.new(544.57, 92.07, -364.86)
-      
-      if hrp then
-          local distance = (hrp.Position - targetPos.Position).Magnitude
-          local duration = distance / math.max(glideSpeed, 1)
-          
-          if currentTween then currentTween:Cancel() end
-          currentTween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-              CFrame = targetPos
-          })
-          currentTween:Play()
-      end
+      GlideToPosition(targetPos)
    end,
 })
 
 ActionTab:CreateButton({
    Name = "Stop ALL Movement",
    Callback = function()
-      if currentTween then currentTween:Cancel() end
+      StopMovement()
    end,
 })
 

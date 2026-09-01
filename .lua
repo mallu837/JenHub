@@ -23,10 +23,11 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local tpWalkEnabled = false
 local glideSpeed = 50
+local upGlideDistance = 25 -- How high you go to avoid traps
 local currentTween = nil
 local savedPosition = nil
 
--- Logic Functions (shared by buttons and keybinds)
+-- Logic Functions
 local function SavePosition()
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -41,33 +42,35 @@ local function SavePosition()
     end
 end
 
-local function GlideToPosition(target)
+local function GlideToPosition(targetCFrame)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     
-    if hrp and target then
-        local distance = (hrp.Position - target.Position).Magnitude
+    if hrp and targetCFrame then
+        local distance = (hrp.Position - targetCFrame.Position).Magnitude
         local duration = distance / math.max(glideSpeed, 1)
 
         if currentTween then currentTween:Cancel() end
 
         currentTween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-            CFrame = target
+            CFrame = targetCFrame
         })
         
         currentTween:Play()
-        
+    end
+end
+
+local function GlideUp()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        -- Calculates current position + the up distance
+        local target = hrp.CFrame * CFrame.new(0, upGlideDistance, 0)
+        GlideToPosition(target)
         Rayfield:Notify({
-            Title = "Gliding",
-            Content = "Moving to location...",
-            Duration = 2,
-            Image = 4483362458,
-        })
-    else
-        Rayfield:Notify({
-            Title = "Error",
-            Content = "Target position or Character not found!",
-            Duration = 3,
+            Title = "Trap Avoidance",
+            Content = "Gliding Up!",
+            Duration = 1.5,
             Image = 4483362458,
         })
     end
@@ -111,16 +114,38 @@ MainTab:CreateSlider({
    end,
 })
 
+MainTab:CreateSlider({
+   Name = "Trap Avoid Height (Up)",
+   Range = {5, 100},
+   Increment = 5,
+   Suffix = "Studs",
+   CurrentValue = 25,
+   Flag = "UpHeight",
+   Callback = function(Value)
+      upGlideDistance = Value
+   end,
+})
+
 MainTab:CreateSection("Keybinds (PC)")
 
 MainTab:CreateKeybind({
    Name = "Toggle TP Walk",
    CurrentKeybind = "Q",
    HoldToInteract = false,
-   Flag = "Keybind1", 
-   Callback = function(Keybind)
+   Flag = "Key1", 
+   Callback = function()
       tpWalkEnabled = not tpWalkEnabled
-      TPWalkToggle:Set(tpWalkEnabled) -- Updates the toggle UI
+      TPWalkToggle:Set(tpWalkEnabled)
+   end,
+})
+
+MainTab:CreateKeybind({
+   Name = "Glide UP (Avoid Trap)",
+   CurrentKeybind = "E",
+   HoldToInteract = false,
+   Flag = "KeyUp",
+   Callback = function()
+      GlideUp()
    end,
 })
 
@@ -128,8 +153,8 @@ MainTab:CreateKeybind({
    Name = "Save Position Key",
    CurrentKeybind = "Z",
    HoldToInteract = false,
-   Flag = "Keybind2",
-   Callback = function(Keybind)
+   Flag = "Key2",
+   Callback = function()
       SavePosition()
    end,
 })
@@ -138,9 +163,11 @@ MainTab:CreateKeybind({
    Name = "Glide to Saved Key",
    CurrentKeybind = "X",
    HoldToInteract = false,
-   Flag = "Keybind3",
-   Callback = function(Keybind)
-      GlideToPosition(savedPosition)
+   Flag = "Key3",
+   Callback = function()
+      if savedPosition then
+          GlideToPosition(savedPosition)
+      end
    end,
 })
 
@@ -148,25 +175,9 @@ MainTab:CreateKeybind({
    Name = "Emergency Stop Key",
    CurrentKeybind = "C",
    HoldToInteract = false,
-   Flag = "Keybind4",
-   Callback = function(Keybind)
+   Flag = "Key4",
+   Callback = function()
       StopMovement()
-   end,
-})
-
-local PositionSection = MainTab:CreateSection("Manual Management")
-
-MainTab:CreateButton({
-   Name = "Save Current Position",
-   Callback = function()
-      SavePosition()
-   end,
-})
-
-MainTab:CreateButton({
-   Name = "Glide to Saved Position",
-   Callback = function()
-      GlideToPosition(savedPosition)
    end,
 })
 
@@ -193,13 +204,6 @@ ActionTab:CreateButton({
    Callback = function()
       local targetPos = CFrame.new(544.57, 92.07, -364.86)
       GlideToPosition(targetPos)
-   end,
-})
-
-ActionTab:CreateButton({
-   Name = "Stop ALL Movement",
-   Callback = function()
-      StopMovement()
    end,
 })
 
